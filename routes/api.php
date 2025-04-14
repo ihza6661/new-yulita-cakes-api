@@ -99,12 +99,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/user/update', [AuthController::class, 'updateUser']);
 
     // Shopping Cart
+    Route::delete('/user/shopping_cart/clear', [ShoppingCartController::class, 'clearCart']);
     Route::get('/user/shopping_cart', [ShoppingCartController::class, 'index']);
-    Route::post('/user/shopping_cart', [ShoppingCartController::class, 'addToCart']);
-    Route::put('/user/shopping_cart/{id}', [ShoppingCartController::class, 'updateCartItem']);
-    Route::middleware('auth:sanctum')->delete('/user/shopping_cart/clear', [ShoppingCartController::class, 'clearCart']);
-
-    Route::delete('/user/shopping_cart/{id}', [ShoppingCartController::class, 'removeCartItem']);
+    Route::post('/user/shopping_cart', [ShoppingCartController::class, 'store']);
+    Route::put('/user/shopping_cart/{cartItemId}', [ShoppingCartController::class, 'update']);
+    Route::delete('/user/shopping_cart/{cartItemId}', [ShoppingCartController::class, 'destroy']);
 
     // Address
     Route::get('/user/addresses', [AddressController::class, 'index']);

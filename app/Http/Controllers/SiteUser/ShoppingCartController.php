@@ -5,97 +5,122 @@ namespace App\Http\Controllers\SiteUser;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AddToCartRequest;
 use App\Http\Requests\UpdateCartItemRequest;
+use App\Http\Resources\SiteUser\CartItemResource;
 use App\Models\Product;
 use App\Models\ShoppingCart;
 use App\Models\ShoppingCartItem;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ShoppingCartController extends Controller
 {
-    public function index()
+    public function index(Request $request): AnonymousResourceCollection
     {
-        $user = Auth::user();
+        $user = $request->user();
         $cart = ShoppingCart::firstOrCreate(['site_user_id' => $user->id]);
 
-        // Menggunakan eager loading untuk menyertakan data produk dan gambar
-        $cartItems = ShoppingCartItem::with('product.images')
+        $cartItems = ShoppingCartItem::with(['product' => function ($query) {
+            $query->with(['images' => function ($imgQuery) {
+                $imgQuery->where('is_primary', true)->orWhere(fn($q) => $q->limit(1));
+            }, 'category']);
+        }])
             ->where('shopping_cart_id', $cart->id)
             ->get();
 
-        return response()->json($cartItems, 200);
+        return CartItemResource::collection($cartItems);
     }
 
-    public function addToCart(AddToCartRequest $request)
+    public function store(AddToCartRequest $request): JsonResponse
     {
-        $user = Auth::user();
-        $product = Product::find($request->product_id);
+        $user = $request->user();
+        $validated = $request->validated();
+        $productId = $validated['product_id'];
+        $quantityToAdd = $validated['qty'];
 
-        // Mengecek ketersediaan stok
-        if ($product->stock < $request->qty) {
-            return response()->json([
-                'message' => 'Stok produk tidak mencukupi.'
-            ], 400);
-        }
+        $product = Product::find($productId);
 
         $cart = ShoppingCart::firstOrCreate(['site_user_id' => $user->id]);
 
-        $cartItem = ShoppingCartItem::firstOrCreate(
+        $cartItem = ShoppingCartItem::where('shopping_cart_id', $cart->id)
+            ->where('product_id', $productId)
+            ->first();
+
+        $currentQtyInCart = $cartItem ? $cartItem->qty : 0;
+        $requestedTotalQty = $currentQtyInCart + $quantityToAdd;
+
+        if ($product->stock < $requestedTotalQty) {
+            return response()->json([
+                'message' => 'Stok produk tidak mencukupi untuk jumlah yang diminta (' . $requestedTotalQty . '). Stok tersedia: ' . $product->stock . '.'
+            ], 422);
+        }
+
+        $cartItem = ShoppingCartItem::updateOrCreate(
             [
                 'shopping_cart_id' => $cart->id,
-                'product_id' => $product->id,
+                'product_id' => $productId,
             ],
             [
-                'qty' => 0,
+                'qty' => $requestedTotalQty
             ]
         );
 
-        $cartItem->qty += $request->qty;
-        $cartItem->save();
-
-        return response()->json(['message' => 'Produk berhasil ditambahkan ke keranjang'], 201);
+        return response()->json(['message' => 'Produk berhasil ditambahkan di keranjang.'], 200);
     }
 
-    public function updateCartItem(UpdateCartItemRequest $request, $id)
+    public function update(UpdateCartItemRequest $request, $cartItemId): JsonResponse
     {
-        $user = Auth::user();
-        $cartItem = ShoppingCartItem::whereHas('shoppingCart', function ($query) use ($user) {
-            $query->where('site_user_id', $user->id);
-        })->findOrFail($id);
+        $user = $request->user();
+        $validated = $request->validated();
+        $newQty = $validated['qty'];
 
-        // Mengecek ketersediaan stok
-        if ($cartItem->product->stock < $request->qty) {
-            return response()->json([
-                'message' => 'Stok produk tidak mencukupi.'
-            ], 400);
+        $cartItem = ShoppingCartItem::with('product')
+            ->whereHas('shoppingCart', function ($query) use ($user) {
+                $query->where('site_user_id', $user->id);
+            })
+            ->find($cartItemId);
+
+        if (!$cartItem) {
+            return response()->json(['message' => 'Item keranjang tidak ditemukan.'], 404);
         }
 
-        $cartItem->update(['qty' => $request->qty]);
+        if ($cartItem->product->stock < $newQty) {
+            return response()->json([
+                'message' => 'Stok produk tidak mencukupi. Stok tersedia: ' . $cartItem->product->stock . '.'
+            ], 422);
+        }
 
-        return response()->json(['message' => 'Jumlah produk berhasil diperbarui'], 200);
+        $cartItem->update(['qty' => $newQty]);
+
+
+        return response()->json(['message' => 'Jumlah produk berhasil diperbarui.'], 200);
     }
 
-    public function removeCartItem($id)
+    public function destroy(Request $request, $cartItemId): JsonResponse
     {
-        $user = Auth::user();
+        $user = $request->user();
         $cartItem = ShoppingCartItem::whereHas('shoppingCart', function ($query) use ($user) {
             $query->where('site_user_id', $user->id);
-        })->findOrFail($id);
+        })
+            ->find($cartItemId);
+
+        if (!$cartItem) {
+            return response()->json(['message' => 'Item keranjang tidak ditemukan.'], 404);
+        }
 
         $cartItem->delete();
 
-        return response()->json(['message' => 'Produk berhasil dihapus dari keranjang'], 200);
+        return response()->json(null, 204);
     }
 
-    public function clearCart()
+    public function clearCart(Request $request): JsonResponse
     {
-        $user = Auth::user();
+        $user = $request->user();
 
-        // Hapus semua item di keranjang user
         ShoppingCartItem::whereHas('shoppingCart', function ($query) use ($user) {
             $query->where('site_user_id', $user->id);
         })->delete();
 
-        return response()->json(['message' => 'Keranjang berhasil dikosongkan'], 200);
+        return response()->json(null, 204);
     }
-
 }

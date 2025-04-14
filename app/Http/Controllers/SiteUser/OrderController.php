@@ -3,38 +3,43 @@
 namespace App\Http\Controllers\SiteUser;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Http\Resources\SiteUser\OrderResource; // Gunakan OrderResource
 use App\Models\Order;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse; // Hanya untuk error jika perlu
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class OrderController extends Controller
 {
-    public function getUserOrder(Request $request)
+    public function index(Request $request): AnonymousResourceCollection
     {
         $user = $request->user();
 
-        // Mengambil pesanan milik pengguna saat ini
-        $orders = Order::with(['orderItems.product', 'address'])
-            ->where('site_user_id', $user->id)
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $orders = $user->orders()
+            ->with([
+                'orderItems:id,order_id,qty,price',
+                'payment:id,order_id,status',
+                'shipment:id,order_id,status'
+            ])
+            ->latest()
+            ->paginate(10);
 
-        return response()->json($orders, 200);
+        return OrderResource::collection($orders);
     }
 
-    public function showUserOrder(Request $request, $id)
+    public function show(Request $request, Order $order): OrderResource|JsonResponse
     {
-        $user = $request->user();
+        $order->loadMissing([
+            'orderItems.product' => function ($query) {
+                $query->with(['images' => function ($imgQuery) {
+                    $imgQuery->where('is_primary', true)->orWhere(fn($q) => $q->limit(1));
+                }]);
+            },
+            'address',
+            'payment',
+            'shipment'
+        ]);
 
-        // Mengambil pesanan dengan relasi, milik pengguna saat ini
-        $order = Order::with(['orderItems.product', 'address', 'shipment'])
-            ->where('id', $id)
-            ->where('site_user_id', $user->id)
-            ->first();
-
-        if (!$order) {
-            return response()->json(['message' => 'Pesanan tidak ditemukan.'], 404);
-        }
-
-        return response()->json($order, 200);
+        return new OrderResource($order);
     }
 }

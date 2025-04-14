@@ -114,8 +114,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('user/addresses/{address}/set-default', [AddressController::class, 'setDefault']);
 
     // Order
-    Route::get('/user/user_orders', [SiteUserOrderController::class, 'getUserOrder']);
-    Route::get('/user/user_orders/{id}', [SiteUserOrderController::class, 'showUserOrder']);
+    Route::get('user/orders', [SiteUserOrderController::class, 'index']);
+    Route::get('user/orders/{order}', [SiteUserOrderController::class, 'show']);
 
     // Proudct Review
     Route::post('/user/product/{productId}/reviews', [SiteUserProductReviewController::class, 'store']);

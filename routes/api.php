@@ -95,7 +95,7 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     // Auth
     Route::post('/user/logout', [AuthController::class, 'logout']);
-    Route::get('/user/get_user', [AuthController::class, 'getUser']);
+    Route::get('/user', [AuthController::class, 'getUser']);
     Route::put('/user/update', [AuthController::class, 'updateUser']);
 
     // Shopping Cart

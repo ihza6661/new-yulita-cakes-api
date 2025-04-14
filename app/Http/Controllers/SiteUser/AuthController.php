@@ -4,32 +4,31 @@ namespace App\Http\Controllers\SiteUser;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Http\Requests\LoginRequest;
-use App\Http\Requests\RegisterRequest;
-use App\Http\Requests\UpdateSiteUserRequest;
+use App\Http\Requests\SiteUser\LoginRequest;
+use App\Http\Requests\SiteUser\RegisterRequest;
+use App\Http\Requests\SiteUser\UpdateSiteUserRequest;
+use App\Http\Resources\SiteUser\UserResource;
 use App\Models\SiteUser;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    public function register(RegisterRequest $request)
+    public function register(RegisterRequest $request): JsonResponse
     {
         $data = $request->validated();
         $data['password'] = Hash::make($data['password']);
-
         $user = SiteUser::create($data);
-
 
         return response()->json([
             'message' => 'Registrasi berhasil.',
-            'user'    => $user->makeHidden(['password', 'remember_token']),
+            'user' => new UserResource($user),
         ], 201);
     }
 
-    public function login(LoginRequest $request)
+    public function login(LoginRequest $request): JsonResponse
     {
         $credentials = $request->validated();
-
         $user = SiteUser::where('email', $credentials['email'])->first();
 
         if (!$user || !Hash::check($credentials['password'], $user->password)) {
@@ -44,16 +43,17 @@ class AuthController extends Controller
             ], 403);
         }
 
-        $token = $user->createToken($user->email)->plainTextToken;
+        $token = $user->createToken($user->email . '-AuthToken')->plainTextToken;
 
         return response()->json([
             'message' => 'Login berhasil.',
-            'user'    => $user->makeHidden(['password', 'remember_token']),
-            'token'   => $token,
+            'user' => new UserResource($user),
+            'token' => $token,
+            'token_type' => 'Bearer',
         ], 200);
     }
 
-    public function logout(Request $request)
+    public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
 
@@ -62,14 +62,12 @@ class AuthController extends Controller
         ], 200);
     }
 
-    public function getUser(Request $request)
+    public function getUser(Request $request): UserResource
     {
-        $user = $request->user()->makeHidden(['password', 'remember_token']);
-
-        return response()->json($user, 200);
+        return new UserResource($request->user());
     }
 
-    public function updateUser(UpdateSiteUserRequest $request)
+    public function updateUser(UpdateSiteUserRequest $request): JsonResponse
     {
         $user = $request->user();
         $data = $request->validated();
@@ -84,7 +82,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Profil berhasil diperbarui.',
-            'user'    => $user->makeHidden(['password', 'remember_token']),
+            'user' => new UserResource($user->fresh()),
         ], 200);
     }
 }

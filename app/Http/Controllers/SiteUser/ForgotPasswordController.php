@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\SiteUser;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SiteUser\ForgotPasswordRequest;
+use App\Http\Requests\SiteUser\ResetPasswordRequest;
+use App\Mail\ResetPasswordMail;
 use Illuminate\Http\Request;
 use App\Models\SiteUser;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -13,69 +17,68 @@ use Illuminate\Support\Facades\Mail;
 
 class ForgotPasswordController extends Controller
 {
-    public function sendResetLinkEmail(Request $request)
+    public function sendResetLinkEmail(ForgotPasswordRequest $request): JsonResponse
     {
-        $request->validate([
-            'email' => 'required|email'
-        ]);
+        $validated = $request->validated();
+        $email = $validated['email'];
 
-        $user = SiteUser::where('email', $request->email)->first();
+        $user = SiteUser::where('email', $email)->first();
 
-        if (!$user) {
-            return response()->json(['message' => 'Email tidak ditemukan.'], 404);
+        if ($user) {
+            $token = Str::random(60);
+
+            DB::table('password_resets')->updateOrInsert(
+                ['email' => $email],
+                ['token' => $token, 'created_at' => Carbon::now()]
+            );
+
+            $frontendUrl = config('app.frontend_url', 'http://localhost:5173');
+            $resetLink = $frontendUrl . '/reset-password?token=' . $token . '&email=' . urlencode($email);
+
+            Mail::to($user)->queue(new ResetPasswordMail($user, $resetLink));
         }
 
-        $token = Str::random(60);
-
-        DB::table('password_resets')->updateOrInsert(
-            ['email' => $user->email],
-            [
-                'token'      => $token,
-                'created_at' => Carbon::now()
-            ]
-        );
-
-        $resetLink = 'http://localhost:5173' . '/reset-password?token=' . $token . '&email=' . urlencode($user->email);
-
-        Mail::send('email.reset', ['resetLink' => $resetLink, 'user' => $user], function ($message) use ($user) {
-            $message->to($user->email);
-            $message->subject('Reset Password Notification');
-        });
-
-        return response()->json(['message' => 'Link reset password telah dikirim ke email Anda.']);
+        return response()->json([
+            'message' => 'Jika email Anda terdaftar, link reset password telah dikirim.'
+        ]);
     }
 
-    public function reset(Request $request)
+    public function reset(ResetPasswordRequest $request): JsonResponse
     {
-        $request->validate([
-            'email'                 => 'required|email',
-            'token'                 => 'required',
-            'password'              => 'required|confirmed|min:8',
-        ]);
+        $validated = $request->validated();
+        $email = $validated['email'];
+        $token = $validated['token'];
+        $newPassword = $validated['password'];
 
-        $passwordReset = DB::table('password_resets')
-            ->where('email', $request->email)
-            ->where('token', $request->token)
-            ->first();
+        $expires = config('auth.passwords.' . config('auth.defaults.passwords') . '.expire', 60);
 
-        if (!$passwordReset) {
-            return response()->json(['message' => 'Token atau email tidak valid.'], 400);
-        }
+        return DB::transaction(function () use ($email, $token, $newPassword, $expires) {
 
-        if (Carbon::parse($passwordReset->created_at)->addMinutes(60)->isPast()) {
-            return response()->json(['message' => 'Token sudah kadaluarsa.'], 400);
-        }
+            $passwordReset = DB::table('password_resets')
+                ->where('email', $email)
+                ->where('token', $token)
+                ->first();
 
-        $user = SiteUser::where('email', $request->email)->first();
-        if (!$user) {
-            return response()->json(['message' => 'Email tidak ditemukan.'], 404);
-        }
+            if (!$passwordReset) {
+                return response()->json(['message' => 'Token atau email tidak valid.'], 422);
+            }
 
-        $user->password = Hash::make($request->password);
-        $user->save();
+            if (Carbon::parse($passwordReset->created_at)->addMinutes($expires)->isPast()) {
+                DB::table('password_resets')->where('email', $email)->delete();
+                return response()->json(['message' => 'Token sudah kadaluarsa.'], 422);
+            }
 
-        DB::table('password_resets')->where('email', $request->email)->delete();
+            $user = SiteUser::where('email', $email)->first();
+            if (!$user) {
+                return response()->json(['message' => 'Pengguna tidak ditemukan.'], 404);
+            }
 
-        return response()->json(['message' => 'Password berhasil diubah.']);
+            $user->password = Hash::make($newPassword);
+            $user->save();
+
+            DB::table('password_resets')->where('email', $email)->delete();
+
+            return response()->json(['message' => 'Password berhasil diubah. Silakan login.']);
+        });
     }
 }

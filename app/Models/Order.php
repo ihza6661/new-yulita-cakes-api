@@ -2,10 +2,14 @@
 
 namespace App\Models;
 
+use App\Enums\OrderStatus;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'site_user_id',
         'address_id',
@@ -13,6 +17,12 @@ class Order extends Model
         'total_amount',
         'shipping_cost',
         'status',
+    ];
+
+    protected $casts = [
+        'total_amount' => 'decimal:2',
+        'shipping_cost' => 'decimal:2',
+        'status' => OrderStatus::class,
     ];
 
     public function user()

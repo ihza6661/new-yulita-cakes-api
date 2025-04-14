@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\OrderStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -13,16 +14,13 @@ return new class extends Migration
     {
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('site_user_id');
-            $table->unsignedBigInteger('address_id');
+            $table->foreignId('site_user_id')->constrained('site_users')->onDelete('cascade'); 
+            $table->foreignId('address_id')->constrained('addresses')->onDelete('restrict');
             $table->string('order_number')->unique();
-            $table->integer('total_amount');
-            $table->integer('shipping_cost');
-            $table->enum('status', ['pending', 'paid', 'processing', 'shipped', 'delivered', 'cancelled'])->default('pending');
+            $table->decimal('total_amount', 15, 2);
+            $table->decimal('shipping_cost', 15, 2);
+            $table->string('status')->default(OrderStatus::PENDING->value)->index();
             $table->timestamps();
-        
-            $table->foreign('site_user_id')->references('id')->on('site_users')->onDelete('cascade');
-            $table->foreign('address_id')->references('id')->on('addresses')->onDelete('cascade');
         });
     }
 

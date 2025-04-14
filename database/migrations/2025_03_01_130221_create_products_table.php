@@ -18,6 +18,7 @@ return new class extends Migration {
             $table->integer('sale_price')->nullable();
             $table->integer('stock');
             $table->integer('weight');
+            $table->string('label')->nullable();
             $table->text('description')->nullable();
             $table->string('slug', 100)->unique();
             $table->timestamps();

@@ -134,9 +134,10 @@ Route::post('/midtrans/notification', [SiteUserPaymentController::class, 'handle
 
 Route::get('/user/get_categories', [SiteUserProductController::class, 'getAllCategories']);
 Route::get('/user/get_products', [SiteUserProductController::class, 'getAllProducts']);
-Route::get('/user/get_latest_products', [SiteUserProductController::class, 'getLatesProducts']);
-Route::get('/user/product/{slug}/detail', [SiteUserProductController::class, 'getProductDetail']);
+Route::get('/user/get_latest_products', [SiteUserProductController::class, 'getLatestProducts']);
+Route::get('/user/product/{product:slug}/detail', [SiteUserProductController::class, 'getProductDetail']);
 Route::get('/user/get_related_products', [SiteUserProductController::class, 'getRelatedProducts']);
+
 // Proudct Review
 Route::get('/user/product/{productId}/reviews', [SiteUserProductReviewController::class, 'index']);
 

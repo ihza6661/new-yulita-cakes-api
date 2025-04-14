@@ -3,79 +3,91 @@
 namespace App\Http\Controllers\SiteUser;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\SiteUser\CategoryResource;
+use App\Http\Resources\SiteUser\ProductResource;
 use Illuminate\Http\Request;
 use App\Models\Category;
 use App\Models\Product;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ProductController extends Controller
 {
-    public function getAllCategories()
+    public function getAllCategories(): AnonymousResourceCollection
     {
         $categories = Category::all();
-        return response()->json($categories, 200);
+        return CategoryResource::collection($categories);
     }
 
-    public function getAllProducts()
+    public function getAllProducts(Request $request): AnonymousResourceCollection
     {
-        $products = Product::with(['images', 'category'])->orderBy('updated_at', 'desc')->get();
-        return response()->json($products, 200);
+        $query = Product::with(['images', 'category']);
+
+        if ($request->has('category_id') && $request->category_id != '') {
+            $query->where('category_id', $request->category_id);
+        }
+
+        $sort_by = $request->input('sort_by', 'created_at');
+        $sort_dir = $request->input('sort_dir', 'desc');
+        if (in_array($sort_by, ['created_at', 'updated_at', 'product_name', 'original_price']) && in_array($sort_dir, ['asc', 'desc'])) {
+            $query->orderBy($sort_by, $sort_dir);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
+
+
+        $perPage = $request->input('per_page', 12);
+        $products = $query->paginate($perPage);
+
+        return ProductResource::collection($products);
     }
 
-    public function getLatesProducts()
+    public function getLatestProducts(): AnonymousResourceCollection
     {
         $products = Product::with(['images', 'category'])
             ->where('stock', '>', 0)
             ->latest()
-            ->take(5)
+            ->take(8)
             ->get();
 
-        return response()->json($products, 200);
+        return ProductResource::collection($products);
     }
 
-    public function getProductDetail($slug)
+    public function getProductDetail(Product $product): ProductResource|JsonResponse
     {
-        $product = Product::with('images')->where('slug', $slug)->first();
+        $product->loadMissing('images', 'category');
 
-        if (!$product) {
-            return response()->json([
-                'message' => 'Produk tidak ditemukan.',
-            ], 404);
-        }
-
-        return response()->json([
-            'product' => $product,
-        ], 200);
+        return new ProductResource($product);
     }
 
-    public function getRelatedProducts(Request $request)
+    public function getRelatedProducts(Request $request): AnonymousResourceCollection|JsonResponse
     {
-        // Jika menggunakan product_id untuk mengeluarkan produk yang sedang dilihat
-        $productId = $request->query('product_id');
-        $categoryId = $request->query('category_id'); // bisa juga dari produk yang sedang dilihat
+        $validated = $request->validate([
+            'category_id' => 'required|integer|exists:categories,id',
+            'product_id' => 'sometimes|integer|exists:products,id'
+        ]);
 
-        // Validasi input, minimal harus ada category_id
-        if (!$categoryId) {
-            return response()->json(['message' => 'Category ID wajib'], 400);
-        }
+        $categoryId = $validated['category_id'];
+        $productId = $validated['product_id'] ?? null;
 
-        // Query untuk mendapatkan produk terkait dari kategori yang sama
-        $query = Product::where('category_id', $categoryId);
+        $query = Product::where('category_id', $categoryId)
+            ->where('stock', '>', 0);
 
-        // Jika product_id ada, keluarkan produk tersebut dari hasil
         if ($productId) {
             $query->where('id', '<>', $productId);
         }
 
-        // Sertakan relasi gambar dengan filter gambar utama (misalnya is_primary = 1)
         $relatedProducts = $query->with([
             'images' => function ($q) {
-                $q->where('is_primary', 1);
+                $q->where('is_primary', true)->orWhere(function ($q2) {
+                    $q2->limit(1);
+                });
             }
         ])
-            ->take(5)
+            ->inRandomOrder()
+            ->take(4)
             ->get();
 
-        return response()->json($relatedProducts);
+        return ProductResource::collection($relatedProducts);
     }
-
 }

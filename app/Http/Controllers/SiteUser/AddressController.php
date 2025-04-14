@@ -4,67 +4,108 @@ namespace App\Http\Controllers\SiteUser;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Http\Requests\AddressRequest;
+use App\Http\Requests\SiteUser\AddressRequest;
+use App\Http\Resources\SiteUser\AddressResource;
 use App\Models\Address;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 
 class AddressController extends Controller
 {
-    // public function __construct()
-    // {
-    //     $this->authorizeResource(Address::class, 'address');
-    //     $this->middleware('auth:sanctum');
-    // }
-
-    public function index(Request $request)
+    public function index(Request $request): AnonymousResourceCollection
     {
-        $addresses = $request->user()->addresses;
+        $addresses = $request->user()
+            ->addresses()
+            ->orderByDesc('is_default')
+            ->latest()
+            ->get();
 
-        return response()->json($addresses, 200);
+        return AddressResource::collection($addresses);
     }
 
-    public function store(AddressRequest $request)
+    public function store(AddressRequest $request): JsonResponse
     {
         $user = $request->user();
+        $validated = $request->validated();
 
-        // If address is set as default, unset previous default addresses
-        if ($request->is_default) {
-            $user->addresses()->update(['is_default' => false]);
-        }
-
-        // Create new address
-        $address = $user->addresses()->create($request->validated());
+        $address = DB::transaction(function () use ($user, $validated, $request) {
+            if ($request->boolean('is_default')) {
+                $user->addresses()->update(['is_default' => false]);
+            }
+            return $user->addresses()->create($validated);
+        });
 
         return response()->json([
             'message' => 'Alamat berhasil ditambahkan.',
-            'address' => $address,
+            'address' => new AddressResource($address),
         ], 201);
     }
 
-    public function show(Address $address)
+    public function show(Request $request, Address $address): AddressResource|JsonResponse
     {
-        return response()->json($address, 200);
-    }
-
-    public function update(AddressRequest $request, Address $address)
-    {
-        // If address is set as default, unset previous default addresses
-        if ($request->is_default) {
-            $request->user()->addresses()->where('id', '!=', $address->id)->update(['is_default' => false]);
+        if ($request->user()->id !== $address->site_user_id) {
+            return response()->json(['message' => 'Akses ditolak.'], 403); // 403 Forbidden
         }
 
-        // Update address
-        $address->update($request->validated());
+        return new AddressResource($address);
+    }
+
+    public function update(AddressRequest $request, Address $address): JsonResponse
+    {
+        if ($request->user()->id !== $address->site_user_id) {
+            return response()->json(['message' => 'Akses ditolak.'], 403);
+        }
+
+        $validated = $request->validated();
+
+        DB::transaction(function () use ($request, $address, $validated) {
+            if ($request->boolean('is_default')) {
+                $request->user()->addresses()->where('id', '!=', $address->id)->update(['is_default' => false]);
+            }
+            $address->update($validated);
+        });
 
         return response()->json([
             'message' => 'Alamat berhasil diperbarui.',
-            'address' => $address,
+            'address' => new AddressResource($address->refresh()),
         ], 200);
     }
 
-    public function destroy(Address $address)
+    public function destroy(Request $request, Address $address): JsonResponse
     {
+        if ($request->user()->id !== $address->site_user_id) {
+            return response()->json(['message' => 'Akses ditolak.'], 403);
+        }
+        // ============================
+
+        if ($address->is_default) {
+            $otherAddress = $request->user()->addresses()->where('id', '!=', $address->id)->first();
+            if ($otherAddress) {
+                $otherAddress->update(['is_default' => true]);
+            }
+        }
+
         $address->delete();
 
-        return response()->json(['message' => 'Alamat berhasil dihapus.'], 200);
+        return response()->json(null, 204); // 204 No Content
+    }
+
+    public function setDefault(Request $request, Address $address): JsonResponse
+    {
+        if ($request->user()->id !== $address->site_user_id) {
+            return response()->json(['message' => 'Akses ditolak.'], 403);
+        }
+        // ============================
+
+        DB::transaction(function () use ($request, $address) {
+            $request->user()->addresses()->where('id', '!=', $address->id)->update(['is_default' => false]);
+            $address->update(['is_default' => true]);
+        });
+
+        return response()->json([
+            'message' => 'Alamat default berhasil diperbarui.',
+            'address' => new AddressResource($address->refresh()),
+        ], 200);
     }
 }

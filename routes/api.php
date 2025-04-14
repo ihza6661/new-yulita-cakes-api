@@ -106,11 +106,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/user/shopping_cart/{cartItemId}', [ShoppingCartController::class, 'destroy']);
 
     // Address
-    Route::get('/user/addresses', [AddressController::class, 'index']);
-    Route::post('/user/addresses', [AddressController::class, 'store']);
-    Route::get('/user/addresses/{address}', [AddressController::class, 'show']);
-    Route::put('/user/addresses/{address}', [AddressController::class, 'update']);
-    Route::delete('/user/addresses/{address}', [AddressController::class, 'destroy']);
+    Route::get('user/addresses', [AddressController::class, 'index']);
+    Route::post('user/addresses', [AddressController::class, 'store']);
+    Route::get('user/addresses/{address}', [AddressController::class, 'show']);
+    Route::put('user/addresses/{address}', [AddressController::class, 'update']);
+    Route::delete('user/addresses/{address}', [AddressController::class, 'destroy']);
+    Route::patch('user/addresses/{address}/set-default', [AddressController::class, 'setDefault']);
 
     // Order
     Route::get('/user/user_orders', [SiteUserOrderController::class, 'getUserOrder']);

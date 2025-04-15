@@ -149,4 +149,19 @@ class ProductReviewController extends Controller
             return response()->json(['can_review' => false, 'has_reviewed' => false, 'reason' => $reason]);
         }
     }
+
+    public function getFeaturedReviews(Request $request): AnonymousResourceCollection
+    {
+        $limit = $request->input('limit', 3);
+
+        $featuredReviews = ProductReview::with('user')
+            ->where('rating', '>=', 4)
+            ->whereNotNull('review')
+            ->where('review', '!=', '')
+            ->latest()
+            ->take($limit)
+            ->get();
+
+        return ReviewResource::collection($featuredReviews);
+    }
 }

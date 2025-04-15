@@ -142,6 +142,7 @@ Route::get('/user/get_related_products', [SiteUserProductController::class, 'get
 
 // Proudct Review
 Route::get('user/products/{productId}/reviews', [SiteUserProductReviewController::class, 'index']);
+Route::get('user/reviews/featured', [SiteUserProductReviewController::class, 'getFeaturedReviews']);
 
 // Forgot Password
 Route::post('/password/email', [ForgotPasswordController::class, 'sendResetLinkEmail']);

@@ -2,180 +2,151 @@
 
 namespace App\Http\Controllers\SiteUser;
 
+use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SiteUser\StoreReviewRequest;
+use App\Http\Requests\SiteUser\UpdateReviewRequest;
+use App\Http\Resources\SiteUser\ReviewResource;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use App\Models\ProductReview;
 use App\Models\Product;
 use App\Models\OrderItem;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ProductReviewController extends Controller
 {
-    public function index($productId)
+    public function index(Request $request, $productId): AnonymousResourceCollection|JsonResponse
     {
-        // Pastikan produk ada
         $product = Product::find($productId);
         if (!$product) {
-            return response()->json([
-                'message' => 'Produk tidak ditemukan.'
-            ], 404);
+            return response()->json(['message' => 'Produk tidak ditemukan.'], 404);
         }
 
-        // Ambil review dengan relasi user (siteUser)
+        $perPage = $request->input('per_page', 5);
         $reviews = ProductReview::with('user')
             ->where('product_id', $productId)
             ->latest()
-            ->get();
+            ->paginate($perPage);
 
-        return response()->json([
-            'reviews' => $reviews,
-        ], 200);
+        return ReviewResource::collection($reviews);
     }
 
-    public function store(Request $request, $productId)
+    public function store(StoreReviewRequest $request, $productId): JsonResponse|ReviewResource
     {
-        // Validasi input review
-        $data = $request->validate([
-            'rating' => 'required|integer|min:1|max:5',
-            'review' => 'nullable|string',
-        ], [
-            'rating.integer'  => 'Rating harus berupa angka.',
-            'rating.min'      => 'Rating minimal 1.',
-            'rating.max'      => 'Rating maksimal 5.',
-        ]);
+        $user = $request->user();
+        $validated = $request->validated();
 
-        // Pastikan produk ada
         $product = Product::find($productId);
         if (!$product) {
-            return response()->json([
-                'message' => 'Produk tidak ditemukan.'
-            ], 404);
+            return response()->json(['message' => 'Produk tidak ditemukan.'], 404);
         }
 
-        // Pastikan user telah login
-        $user = $request->user();
-        if (!$user) {
-            return response()->json([
-                'message' => 'Anda harus login untuk memberikan review.'
-            ], 401);
-        }
-
-        // Pastikan user telah membeli produk ini dan order-nya sudah delivered.
-        $hasPurchased = OrderItem::whereHas('order', function ($query) use ($user) {
-            $query->where('site_user_id', $user->id)
-                ->where('status', 'delivered');
-        })
-            ->where('product_id', $productId)
+        $hasPurchasedAndDelivered = Order::where('site_user_id', $user->id)
+            ->where('status', OrderStatus::DELIVERED)
+            ->whereHas('orderItems', function ($query) use ($productId) {
+                $query->where('product_id', $productId);
+            })
             ->exists();
 
-        if (!$hasPurchased) {
-            return response()->json([
-                'message' => 'Anda belum membeli produk ini atau produk belum diterima.'
-            ], 403);
+        if (!$hasPurchasedAndDelivered) {
+            return response()->json(['message' => 'Anda hanya bisa mereview produk yang sudah dibeli dan diterima.'], 403);
         }
 
-        // Simpan review baru tanpa opsi anonymous (gunakan nama asli user)
+        $existingReview = ProductReview::where('site_user_id', $user->id)
+            ->where('product_id', $productId)
+            ->first();
+
+        if ($existingReview) {
+            return response()->json(['message' => 'Anda sudah memberikan review untuk produk ini.'], 409);
+        }
+
         $review = ProductReview::create([
             'site_user_id' => $user->id,
-            'product_id'   => $productId,
-            'rating'       => $data['rating'],
-            'review'       => $data['review'],
+            'product_id' => $productId,
+            'rating' => $validated['rating'],
+            'review' => $validated['review'] ?? null,
         ]);
+
+        $review->load('user');
 
         return response()->json([
             'message' => 'Review berhasil ditambahkan.',
-            'review'  => $review,
+            'review' => new ReviewResource($review)
         ], 201);
     }
 
-    public function updateReview(Request $request, $reviewId)
+    public function update(UpdateReviewRequest $request, ProductReview $review): JsonResponse|ReviewResource
     {
-        $data = $request->validate([
-            'rating' => 'required|integer|min:1|max:5',
-            'review' => 'nullable|string',
-        ], [
-            'rating.required' => 'Rating harus diisi.',
-        ]);
-
-        // Pastikan user telah login
         $user = $request->user();
-        if (!$user) {
-            return response()->json([
-                'message' => 'Anda harus login untuk mengubah review.'
-            ], 401);
+        $validated = $request->validated();
+
+        if ($review->site_user_id !== $user->id) {
+            return response()->json(['message' => 'Anda tidak memiliki izin untuk mengubah review ini.'], 403);
         }
 
-        // Temukan review berdasarkan ID
-        $review = ProductReview::find($reviewId);
-        if (!$review) {
-            return response()->json([
-                'message' => 'Review tidak ditemukan.'
-            ], 404);
-        }
-
-        // Cek apakah review tersebut milik user yang sedang login
-        if ($review->site_user_id != $user->id) {
-            return response()->json([
-                'message' => 'Anda tidak memiliki izin untuk mengubah review ini.'
-            ], 403);
-        }
-
-        // Update review
         $review->update([
-            'rating' => $data['rating'],
-            'review' => $data['review'],
+            'rating' => $validated['rating'],
+            'review' => $validated['review'] ?? $review->review,
         ]);
+
+        $review->load('user');
 
         return response()->json([
             'message' => 'Review berhasil diperbarui.',
-            'review'  => $review,
+            'review' => new ReviewResource($review->fresh())
         ], 200);
     }
 
-    public function destroyReview(Request $request, $reviewId)
+    public function destroy(Request $request, ProductReview $review): JsonResponse
     {
-        // Pastikan user telah login
         $user = $request->user();
-        if (!$user) {
-            return response()->json([
-                'message' => 'Anda harus login untuk menghapus review.'
-            ], 401);
-        }
 
-        // Temukan review berdasarkan ID
-        $review = ProductReview::find($reviewId);
-        if (!$review) {
-            return response()->json([
-                'message' => 'Review tidak ditemukan.'
-            ], 404);
-        }
-
-        // Pastikan review milik user
-        if ($review->site_user_id != $user->id) {
-            return response()->json([
-                'message' => 'Anda tidak memiliki izin untuk menghapus review ini.'
-            ], 403);
+        if ($review->site_user_id !== $user->id) {
+            return response()->json(['message' => 'Anda tidak memiliki izin untuk menghapus review ini.'], 403);
         }
 
         $review->delete();
-        return response()->json([
-            'message' => 'Review berhasil dihapus.'
-        ], 200);
+
+        return response()->json(null, 204);
     }
 
-    public function reviewEligibility(Request $request, $productId)
+    public function eligibility(Request $request, $productId): JsonResponse
     {
         $user = $request->user();
         if (!$user) {
-            return response()->json(['eligible' => false], 200);
+            return response()->json(['can_review' => false, 'has_reviewed' => false, 'reason' => 'unauthenticated']);
         }
 
-        $hasPurchased = OrderItem::whereHas('order', function ($query) use ($user) {
-            $query->where('site_user_id', $user->id)
-                ->where('status', 'delivered');
-        })
+        $product = Product::find($productId);
+        if (!$product) {
+            return response()->json(['can_review' => false, 'has_reviewed' => false, 'reason' => 'product_not_found']);
+        }
+
+        $hasReviewed = ProductReview::where('site_user_id', $user->id)
             ->where('product_id', $productId)
             ->exists();
 
-        return response()->json(['eligible' => $hasPurchased], 200);
+        if ($hasReviewed) {
+            return response()->json(['can_review' => false, 'has_reviewed' => true, 'reason' => 'already_reviewed']);
+        }
+
+        $hasPurchasedAndDelivered = Order::where('site_user_id', $user->id)
+            ->where('status', OrderStatus::DELIVERED)
+            ->whereHas('orderItems', function ($query) use ($productId) {
+                $query->where('product_id', $productId);
+            })
+            ->exists();
+
+        if ($hasPurchasedAndDelivered) {
+            return response()->json(['can_review' => true, 'has_reviewed' => false, 'reason' => null]);
+        } else {
+            $hasPurchased = Order::where('site_user_id', $user->id)
+                ->whereHas('orderItems', fn($q) => $q->where('product_id', $productId))
+                ->exists();
+            $reason = !$hasPurchased ? 'not_purchased' : 'not_delivered';
+            return response()->json(['can_review' => false, 'has_reviewed' => false, 'reason' => $reason]);
+        }
     }
 }

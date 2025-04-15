@@ -4,27 +4,40 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Auth;
 
 class UpdateCategoryRequest extends FormRequest
 {
-    public function rules()
+
+    public function authorize(): bool
     {
+        return Auth::guard('admin_users')->check();
+    }
+
+    public function rules(): array
+    {
+        $category = $this->route('category');
+
         return [
             'category_name' => [
                 'required',
-                Rule::unique('categories', 'category_name')->ignore($this->route('category')),
+                'string',
+                'max:50',
+                Rule::unique('categories', 'category_name')->ignore($category->id),
             ],
-            'image' => 'nullable|mimes:png,jpg,gif,svg,webp|max:2028',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
         ];
     }
 
-    public function messages()
+    public function messages(): array
     {
-        return [
+         return [
             'category_name.required' => 'Nama kategori wajib diisi.',
-            'category_name.unique' => 'Nama kategori sudah terdaftar.',
-            'image.image' => 'File yang diunggah harus berupa gambar.',
-            'image.max' => 'Ukuran gambar terlalu besar. Maksimal 2MB.',
+            'category_name.max'      => 'Nama kategori maksimal 50 karakter.',
+            'category_name.unique'   => 'Nama kategori sudah terdaftar.',
+            'image.image'            => 'File yang diunggah harus berupa gambar.',
+            'image.mimes'            => 'Format gambar: jpeg, png, jpg, gif, svg, webp.',
+            'image.max'              => 'Ukuran gambar maksimal 2MB.',
         ];
     }
 }

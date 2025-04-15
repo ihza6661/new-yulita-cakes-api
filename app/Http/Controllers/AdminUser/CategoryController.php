@@ -4,106 +4,72 @@ namespace App\Http\Controllers\AdminUser;
 
 use App\Http\Requests\CategoryRequest;
 use App\Http\Requests\UpdateCategoryRequest;
+use App\Http\Resources\CategoryResource;
 use App\Models\Category;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Symfony\Component\HttpFoundation\Response;
 
 class CategoryController extends Controller
 {
-    public function index()
+    public function index(): AnonymousResourceCollection
     {
-        $categories = Category::orderBy('created_at', 'desc')->get();
-        return response()->json($categories, 200);
+        $categories = Category::orderBy('category_name', 'asc')->get();
+        return CategoryResource::collection($categories);
     }
 
-    public function store(CategoryRequest $request)
+    public function store(CategoryRequest $request): JsonResponse
     {
-        try {
-            $data = $request->validated();
-
-            // Menyimpan gambar kategori
-            if ($request->hasFile('image')) {
-                $data['image'] = $request->file('image')->store('categories', 'public');
-            }
-
-            $category = Category::create($data);
-
-            return response()->json([
-                'category' => $category,
-                'message'  => 'Kategori berhasil ditambahkan.'
-            ], 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message'  => 'Terjadi kesalahan saat menambahkan kategori.',
-                'error'    => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function show($id)
-    {
-        // Menggunakan route model binding jika memungkinkan
-        $category = Category::find($id);
-
-        if (!$category) {
-            return response()->json([
-                'message' => 'Kategori tidak ditemukan.',
-            ], 404);
-        }
-
-        return response()->json($category, 200);
-    }
-
-    public function update(UpdateCategoryRequest $request, $id)
-    {
-        $category = Category::find($id);
-
-        if (!$category) {
-            return response()->json([
-                'message' => 'Kategori tidak ditemukan.',
-            ], 404);
-        }
-
         $data = $request->validated();
 
-        // Menghapus gambar lama jika ada gambar baru
         if ($request->hasFile('image')) {
-            // Pastikan gambar lama ada sebelum dihapus
-            if (!empty($category->image) && Storage::disk('public')->exists($category->image)) {
+            $data['image'] = $request->file('image')->store('categories', 'public');
+        } else {
+             $data['image'] = null;
+        }
+
+        $category = Category::create($data);
+
+        return response()->json([
+            'message'  => 'Kategori berhasil ditambahkan.',
+            'category' => new CategoryResource($category)
+        ], Response::HTTP_CREATED); // 201
+    }
+
+    public function show(Category $category): CategoryResource
+    {
+        return new CategoryResource($category);
+    }
+
+    public function update(UpdateCategoryRequest $request, Category $category): JsonResponse
+    {
+        $data = $request->validated();
+
+        if ($request->hasFile('image')) {
+            if ($category->image && Storage::disk('public')->exists($category->image)) {
                 Storage::disk('public')->delete($category->image);
             }
-
-            // Simpan gambar baru
             $data['image'] = $request->file('image')->store('categories', 'public');
         }
 
-        // Perbarui kategori dengan data baru
         $category->update($data);
 
         return response()->json([
-            'category' => $category,
-            'message'  => 'Kategori berhasil diperbarui.',
-        ], 200);
+             'message'  => 'Kategori berhasil diperbarui.',
+             'category' => new CategoryResource($category->fresh())
+        ], Response::HTTP_OK); // 200
+    }
 
-    // public function destroy($id)
-    // {
-    //     $category = Category::find($id);
+    public function destroy(Category $category): Response
+    {
+        if ($category->image && Storage::disk('public')->exists($category->image)) {
+            Storage::disk('public')->delete($category->image);
+        }
 
-    //     if (!$category) {
-    //         return response()->json([
-    //             'message' => 'Kategori tidak ditemukan.',
-    //         ], 404);
-    //     }
+        $category->delete();
 
-    //     // Menghapus gambar kategori
-    //     if (Storage::disk('public')->exists($category->image)) {
-    //         Storage::disk('public')->delete($category->image);
-    //     }
-
-    //     $category->delete();
-
-    //     return response()->json([
-    //         'message' => 'Kategori berhasil dihapus.',
-    //     ], 200);
+        return response()->noContent();
     }
 }

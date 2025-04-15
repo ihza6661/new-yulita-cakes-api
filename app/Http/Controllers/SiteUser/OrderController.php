@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\SiteUser;
 
+use App\Enums\OrderStatus;
+use App\Enums\ShipmentStatus;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\SiteUser\OrderResource; // Gunakan OrderResource
+use App\Http\Resources\SiteUser\OrderResource;
 use App\Models\Order;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse; // Hanya untuk error jika perlu
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class OrderController extends Controller
@@ -41,5 +43,29 @@ class OrderController extends Controller
         ]);
 
         return new OrderResource($order);
+    }
+
+    public function confirmDelivery(Request $request, Order $order): JsonResponse|OrderResource
+    {
+        if ($order->status !== OrderStatus::SHIPPED) {
+            return response()->json([
+                'message' => 'Pesanan ini tidak dalam status "Dikirim" sehingga tidak bisa dikonfirmasi penerimaannya.',
+                'current_status' => $order->status->value
+            ], 409);
+        }
+
+        $order->status = OrderStatus::DELIVERED;
+        $order->save();
+
+        if ($order->shipment) {
+            $order->shipment->update(['status' => ShipmentStatus::DELIVERED ?? 'delivered']);
+        }
+
+        $order->loadMissing(['payment', 'shipment', 'address', 'orderItems.product.images']);
+
+        return response()->json([
+            'message' => 'Konfirmasi penerimaan pesanan berhasil.',
+            'order' => new OrderResource($order)
+        ], 200);
     }
 }

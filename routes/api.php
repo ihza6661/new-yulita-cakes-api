@@ -116,6 +116,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Order
     Route::get('user/orders', [SiteUserOrderController::class, 'index']);
     Route::get('user/orders/{order}', [SiteUserOrderController::class, 'show']);
+    Route::post('user/orders/{order}/confirm-delivery', [SiteUserOrderController::class, 'confirmDelivery'])->name('orders.confirmDelivery');
 
     // Proudct Review
     Route::get('user/products/{productId}/review-eligibility', [SiteUserProductReviewController::class, 'eligibility']);

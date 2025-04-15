@@ -23,18 +23,31 @@ class ProductController extends Controller
     {
         $query = Product::with(['images', 'category']);
 
-        if ($request->has('category_id') && $request->category_id != '') {
+        if ($request->filled('category_id')) {
             $query->where('category_id', $request->category_id);
         }
 
-        $sort_by = $request->input('sort_by', 'created_at');
-        $sort_dir = $request->input('sort_dir', 'desc');
-        if (in_array($sort_by, ['created_at', 'updated_at', 'product_name', 'original_price']) && in_array($sort_dir, ['asc', 'desc'])) {
-            $query->orderBy($sort_by, $sort_dir);
+        if ($request->filled('search')) {
+            $searchTerm = '%' . $request->search . '%';
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('product_name', 'like', $searchTerm)
+                    ->orWhere('description', 'like', $searchTerm);
+            });
+        }
+
+        $query->orderByRaw('stock > 0 DESC');
+
+        $sortBy = $request->input('sort_by', 'created_at');
+        $sortDir = $request->input('sort_dir', 'desc');
+
+        $allowedSorts = ['created_at', 'updated_at', 'product_name', 'original_price', 'stock'];
+        if (in_array($sortBy, $allowedSorts) && in_array(strtolower($sortDir), ['asc', 'desc'])) {
+            $query->orderBy($sortBy, $sortDir);
         } else {
             $query->orderBy('created_at', 'desc');
         }
 
+        $query->orderBy('id', 'desc');
 
         $perPage = $request->input('per_page', 12);
         $products = $query->paginate($perPage);

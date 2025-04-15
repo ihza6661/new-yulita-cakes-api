@@ -112,7 +112,7 @@ class PaymentController extends Controller
                 'transaction_details' => ['order_id' => $orderNumber, 'gross_amount' => (float)$grandTotal],
                 'customer_details' => $customerDetails,
                 'item_details' => $midtransItemDetails,
-                'finish' => $frontendBaseUrl . '/dashboard/orders/' . $order->id,
+                'finish' => $frontendBaseUrl . '/dashboard/pesanan/' . $order->id,
             ];
 
             $snapToken = Snap::getSnapToken($params);

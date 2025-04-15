@@ -6,24 +6,25 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class AdminLoginRequest extends FormRequest
 {
-    public function authorize()
+    public function authorize(): bool
     {
         return true;
     }
 
-    public function rules()
+    public function rules(): array
     {
         return [
-            'email' => 'required|string',
+            'email'    => 'required|string|email',
             'password' => 'required|string',
         ];
     }
 
-    public function messages()
+     public function messages(): array
     {
         return [
-            'email.required' => 'email wajib diisi.',
-            'password.required' => 'Password wajib diisi.',
+            'email.required'     => 'Email wajib diisi.',
+            'email.email'        => 'Format email tidak valid.',
+            'password.required'  => 'Password wajib diisi.',
         ];
     }
 }

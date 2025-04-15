@@ -4,8 +4,9 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
-class AdminStoreRequest extends FormRequest
+class AdminUserUpdateRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -14,25 +15,29 @@ class AdminStoreRequest extends FormRequest
 
     public function rules(): array
     {
+        $adminUserId = $this->route('admin_user')->id;
+
         return [
-            'name'     => 'required|string|max:50',
-            'email'    => 'required|string|email|max:50|unique:admin_users,email',
-            'password' => 'required|string|min:8|confirmed',
+            'name' => 'required|string|max:50',
+            'email' => [
+                'required',
+                'string',
+                'email',
+                'max:50',
+                Rule::unique('admin_users', 'email')->ignore($adminUserId),
+            ],
         ];
     }
 
     public function messages(): array
     {
-        return [
+         return [
             'name.required'      => 'Nama wajib diisi.',
             'name.max'           => 'Nama tidak boleh lebih dari 50 karakter.',
             'email.required'     => 'Email wajib diisi.',
             'email.email'        => 'Format email tidak valid.',
             'email.max'          => 'Email tidak boleh lebih dari 50 karakter.',
             'email.unique'       => 'Email sudah terdaftar, gunakan email lain.',
-            'password.required'  => 'Password wajib diisi.',
-            'password.min'       => 'Password harus minimal 8 karakter.',
-            'password.confirmed' => 'Konfirmasi password tidak cocok.',
         ];
     }
 }

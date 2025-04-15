@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 // ADMIN USER CONTROLLER
+use App\Http\Controllers\AdminUser\AdminUserController;
 use App\Http\Controllers\AdminUser\AdminAuthController;
 use App\Http\Controllers\AdminUser\CategoryController;
 use App\Http\Controllers\AdminUser\DashboardController;
@@ -35,14 +36,16 @@ Route::middleware('guest:sanctum')->group(function () {
 // ADMIN USER
 Route::middleware('auth:sanctum')->group(function () {
     // Auth
-    Route::get('/admin/admin', [AdminAuthController::class, 'index']);
-    Route::get('/admin/get_admin', [AdminAuthController::class, 'show']);
-    Route::post('/admin/admin', [AdminAuthController::class, 'store']);
-    Route::put('/admin/admin', [AdminAuthController::class, 'update']);
-    Route::delete('/admin/admin/{admin}', [AdminAuthController::class, 'destroy']);
-    Route::get('/admin/show_selected_admin/{admin}', [AdminAuthController::class, 'showSelectedAdmin']);
-    Route::put('/admin/update_selected_admin/{admin}', [AdminAuthController::class, 'updateSelectedAdmin']);
+    Route::get('/admin/profile', [AdminAuthController::class, 'profile']);
+    Route::put('/admin/profile', [AdminAuthController::class, 'updateProfile']);
     Route::post('/admin/logout', [AdminAuthController::class, 'logout']);
+    
+    Route::get('/admin/admin', [AdminUserController::class, 'index']);
+    Route::post('/admin/admin', [AdminUserController::class, 'store']);
+    Route::get('/admin/admin/{admin_user}', [AdminUserController::class, 'show']);
+    Route::put('/admin/admin/{admin_user}', [AdminUserController::class, 'update']);
+    Route::delete('/admin/admin/{admin_user}', [AdminUserController::class, 'destroy']);
+
 
     // SiteUserDetailController
     Route::put('/admin/site_user', [SiteUserController::class, 'index']);

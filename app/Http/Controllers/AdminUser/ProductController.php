@@ -4,148 +4,170 @@ namespace App\Http\Controllers\AdminUser;
 
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
+use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use App\Models\ProductImage;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
 
 class ProductController extends Controller
 {
-    public function index()
+    public function index(): AnonymousResourceCollection
     {
-        $products = Product::with(['images', 'category'])->orderBy('created_at', 'desc')->get();
-        return response()->json($products, 200);
+        $products = Product::with(['category', 'images'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+        return ProductResource::collection($products);
     }
 
-    public function store(StoreProductRequest $request)
+    public function store(StoreProductRequest $request): JsonResponse
     {
-        // Obtain validated data
         $data = $request->validated();
+        $images = $request->file('images');
 
-        // Create the product without the slug
-        $product = Product::create($data);
+        unset($data['images']);
 
-        // Handle images if present
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $index => $image) {
-                $imagePath = $image->store('product', 'public');
+        DB::beginTransaction();
+        try {
+            $product = Product::create($data);
 
-                // Set the first image as primary
-                $isPrimary = $index === 0 ? true : false;
-
-                ProductImage::create([
-                    'product_id' => $product->id,
-                    'image' => $imagePath,
-                    'is_primary' => $isPrimary,
-                ]);
+            if ($images) {
+                foreach ($images as $index => $imageFile) {
+                    $imagePath = $imageFile->store('product', 'public');
+                    ProductImage::create([
+                        'product_id' => $product->id,
+                        'image' => $imagePath,
+                        'is_primary' => ($index === 0),
+                    ]);
+                }
             }
-        }
 
-        return response()->json([
-            'product' => $product->load('images'),
-            'message' => 'Produk berhasil ditambahkan.',
-        ], 201);
+            DB::commit();
+
+            $product->load('category', 'images');
+
+            return response()->json([
+                'message' => 'Produk berhasil ditambahkan.',
+                'product' => new ProductResource($product)
+            ], Response::HTTP_CREATED);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error storing product: ' . $e->getMessage());
+
+            if (isset($product) && $images) {
+                $productImages = ProductImage::where('product_id', $product->id)->get();
+                foreach ($productImages as $img) {
+                    if (Storage::disk('public')->exists($img->image)) {
+                        Storage::disk('public')->delete($img->image);
+                    }
+                }
+            }
+
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat menyimpan produk.',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
-    public function show($id)
+    public function show(Product $product): ProductResource
     {
-        $product = Product::with(['images', 'category'])->find($id);
-
-        if (!$product) {
-            return response()->json([
-                'message' => 'Produk tidak ditemukan.',
-            ], 404);
-        }
-
-        return response()->json([
-            'product' => $product,
-        ], 200);
+        $product->load(['category', 'images']);
+        return new ProductResource($product);
     }
 
-    public function update(UpdateProductRequest $request, $id)
+    public function update(UpdateProductRequest $request, Product $product): JsonResponse
     {
-        $product = Product::find($id);
-
-        if (!$product) {
-            return response()->json([
-                'message' => 'Produk tidak ditemukan.',
-            ], 404);
-        }
-
         $data = $request->validated();
+        $newImageFiles = $request->file('images');
+        $imagesToDeleteIds = $request->input('imagesToDelete', []);
 
-        $product->update($data);
+        unset($data['images'], $data['imagesToDelete']);
 
-        // Delete images that are marked for deletion
-        if ($request->has('imagesToDelete')) {
-            $imagesToDelete = $request->input('imagesToDelete');
-            foreach ($imagesToDelete as $imageId) {
-                $productImage = ProductImage::find($imageId);
-                if ($productImage && $productImage->product_id == $product->id) {
-                    // Delete image file
-                    Storage::disk('public')->delete($productImage->image);
-                    // Delete database record
+        DB::beginTransaction();
+        try {
+            $product->update($data);
+
+            if (!empty($imagesToDeleteIds)) {
+                $imagesToDelete = ProductImage::where('product_id', $product->id)
+                    ->whereIn('id', $imagesToDeleteIds)
+                    ->get();
+
+                foreach ($imagesToDelete as $productImage) {
+                    if (Storage::disk('public')->exists($productImage->image)) {
+                        Storage::disk('public')->delete($productImage->image);
+                    }
                     $productImage->delete();
                 }
             }
-        }
 
-        // Handle new images
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $imageFile) {
-                $imagePath = $imageFile->store('product', 'public');
-
-                ProductImage::create([
-                    'product_id' => $product->id,
-                    'image' => $imagePath,
-                    'is_primary' => false, // You can adjust this as needed
-                ]);
+            if ($newImageFiles) {
+                foreach ($newImageFiles as $imageFile) {
+                    $imagePath = $imageFile->store('product', 'public');
+                    ProductImage::create([
+                        'product_id' => $product->id,
+                        'image' => $imagePath,
+                        'is_primary' => false,
+                    ]);
+                }
             }
-        }
 
-        // Ensure at least one image is set as primary
-        if (!$product->images()->where('is_primary', true)->exists()) {
-            $firstImage = $product->images()->first();
-            if ($firstImage) {
-                $firstImage->update(['is_primary' => true]);
+            $product->load('images');
+            $currentImages = $product->images;
+
+            $hasPrimary = $currentImages->contains('is_primary', true);
+
+            if (!$hasPrimary && $currentImages->isNotEmpty()) {
+                $firstImage = $currentImages->first();
+                $firstImage->is_primary = true;
+                $firstImage->save();
             }
-        }
 
-        return response()->json([
-            'product' => $product->load('images'),
-            'message' => 'Produk berhasil diperbarui.',
-        ], 200);
+            DB::commit();
+
+            $product->load(['category', 'images']);
+
+            return response()->json([
+                'message' => 'Produk berhasil diperbarui.',
+                'product' => new ProductResource($product)
+            ], Response::HTTP_OK);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error updating product: ' . $e->getMessage());
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat memperbarui produk.',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
-    public function destroy($id)
+    public function destroy(Product $product): Response
     {
-        $product = Product::find($id);
+        DB::beginTransaction();
+        try {
+            foreach ($product->images as $productImage) {
+                if ($productImage->image && Storage::disk('public')->exists($productImage->image)) {
+                    Storage::disk('public')->delete($productImage->image);
+                }
+            }
 
-        if (!$product) {
+            $product->delete();
+
+            DB::commit();
+
+            return response()->noContent();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error deleting product: ' . $e->getMessage());
+
             return response()->json([
-                'message' => 'Produk tidak ditemukan.',
-            ], 404);
+                'message' => 'Terjadi kesalahan saat menghapus produk.',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        $product->delete();
-
-        return response()->json([
-            'message' => 'Produk berhasil dihapus.',
-        ], 200);
-    }
-    
-    public function getProductDetail($slug)
-    {
-        $product = Product::with('images')->where('slug', $slug)->first();
-
-        if (!$product) {
-            return response()->json([
-                'message' => 'Produk tidak ditemukan.',
-            ], 404);
-        }
-
-        return response()->json([
-            'product' => $product,
-        ], 200);
     }
 }

@@ -2,117 +2,160 @@
 
 namespace App\Http\Controllers\AdminUser;
 
+use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\SiteUser;
+use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class DashboardController extends Controller
 {
-    public function summary()
+    public function summary(): JsonResponse
     {
-        // Hitung total penjualan (jumlah seluruh total_amount pada orders)
-        $totalSales = Order::sum('total_amount');
+        $validSaleStatuses = [
+            OrderStatus::PAID->value,
+            OrderStatus::PROCESSING->value,
+            OrderStatus::SHIPPED->value,
+            OrderStatus::DELIVERED->value,
+        ];
 
-        // Hitung total pesanan
-        $totalOrders = Order::count();
+        $countableOrderStatuses = [
+            OrderStatus::PENDING->value,
+            OrderStatus::PAID->value,
+            OrderStatus::PROCESSING->value,
+            OrderStatus::SHIPPED->value,
+            OrderStatus::DELIVERED->value,
+        ];
 
-        // Hitung total pengguna (site_users)
-        $totalUsers = SiteUser::count();
+        $totalSales = Order::whereIn('status', $validSaleStatuses)->sum('total_amount');
 
-        // Hitung total produk
+        $totalOrders = Order::whereIn('status', $countableOrderStatuses)->count();
+
+        $totalUsers = SiteUser::where('is_active', true)->count();
+
         $totalProducts = Product::count();
 
         return response()->json([
-            'totalSales'    => $totalSales,
-            'totalOrders'   => $totalOrders,
-            'totalUsers'    => $totalUsers,
-            'totalProducts' => $totalProducts,
-        ], 200);
+            'totalSales'    => (float) $totalSales, // Cast ke float
+            'totalOrders'   => (int) $totalOrders,
+            'totalUsers'    => (int) $totalUsers,
+            'totalProducts' => (int) $totalProducts,
+        ]);
     }
 
-    public function ordersData()
+    public function ordersData(Request $request): JsonResponse
     {
-        $orders = Order::selectRaw('MONTH(created_at) as month, COUNT(*) as Orders')
-            ->groupBy('month')
-            ->orderBy('month')
-            ->get();
+        $validated = $request->validate([
+            'start_date' => 'nullable|date|date_format:Y-m-d',
+            'end_date'   => 'nullable|date|date_format:Y-m-d|after_or_equal:start_date',
+        ]);
 
-        $monthNames = [
-            1 => 'Jan',
-            2 => 'Feb',
-            3 => 'Mar',
-            4 => 'Apr',
-            5 => 'May',
-            6 => 'Jun',
-            7 => 'Jul',
-            8 => 'Aug',
-            9 => 'Sep',
-            10 => 'Oct',
-            11 => 'Nov',
-            12 => 'Dec',
+        $endDate = isset($validated['end_date']) ? Carbon::parse($validated['end_date'])->endOfDay() : Carbon::now()->endOfDay();
+        $startDate = isset($validated['start_date']) ? Carbon::parse($validated['start_date'])->startOfDay() : $endDate->copy()->subMonths(11)->startOfMonth(); // Default 12 bulan
+
+        $countableOrderStatuses = [
+            OrderStatus::PENDING->value,
+            OrderStatus::PAID->value,
+            OrderStatus::PROCESSING->value,
+            OrderStatus::SHIPPED->value,
+            OrderStatus::DELIVERED->value,
         ];
 
-        $data = $orders->map(function ($item) use ($monthNames) {
-            return [
-                'name' => $monthNames[$item->month] ?? $item->month,
-                'Orders' => (int)$item->Orders,
-            ];
-        });
-
-        return response()->json($data, 200);
-    }
-
-    public function salesData()
-    {
-        $sales = Order::selectRaw('MONTH(created_at) as month, SUM(total_amount) as Sales')
-            ->groupBy('month')
-            ->orderBy('month')
+        $ordersQuery = Order::selectRaw('YEAR(created_at) as year, MONTH(created_at) as month, COUNT(*) as count')
+            ->whereIn('status', $countableOrderStatuses) // Filter status
+            ->whereBetween('created_at', [$startDate, $endDate]) // Filter tanggal
+            ->groupBy('year', 'month')
+            ->orderBy('year', 'asc')
+            ->orderBy('month', 'asc')
             ->get();
 
-        $monthNames = [
-            1 => 'Jan',
-            2 => 'Feb',
-            3 => 'Mar',
-            4 => 'Apr',
-            5 => 'May',
-            6 => 'Jun',
-            7 => 'Jul',
-            8 => 'Aug',
-            9 => 'Sep',
-            10 => 'Oct',
-            11 => 'Nov',
-            12 => 'Dec',
-        ];
+        $reportData = $this->padChartData($ordersQuery, $startDate, $endDate, 'count');
 
-        $data = $sales->map(function ($item) use ($monthNames) {
-            return [
-                'name' => $monthNames[$item->month] ?? $item->month,
-                'Sales' => (int)$item->Sales,
-            ];
-        });
-
-        return response()->json($data, 200);
+        return response()->json($reportData);
     }
 
-    public function recentOrders()
+    public function salesData(Request $request): JsonResponse
     {
-        $orders = Order::with('user')
-            ->orderBy('created_at', 'desc')
+        $validated = $request->validate([
+            'start_date' => 'nullable|date|date_format:Y-m-d',
+            'end_date'   => 'nullable|date|date_format:Y-m-d|after_or_equal:start_date',
+        ]);
+
+        $endDate = isset($validated['end_date']) ? Carbon::parse($validated['end_date'])->endOfDay() : Carbon::now()->endOfDay();
+        $startDate = isset($validated['start_date']) ? Carbon::parse($validated['start_date'])->startOfDay() : $endDate->copy()->subMonths(11)->startOfMonth();
+
+        $validSaleStatuses = [
+            OrderStatus::PAID->value,
+            OrderStatus::PROCESSING->value,
+            OrderStatus::SHIPPED->value,
+            OrderStatus::DELIVERED->value,
+        ];
+
+        $salesQuery = Order::selectRaw('YEAR(created_at) as year, MONTH(created_at) as month, SUM(total_amount) as total')
+            ->whereIn('status', $validSaleStatuses) // Filter status penjualan
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->groupBy('year', 'month')
+            ->orderBy('year', 'asc')
+            ->orderBy('month', 'asc')
+            ->get();
+
+        $reportData = $this->padChartData($salesQuery, $startDate, $endDate, 'total', true); // Cast ke float
+
+        return response()->json($reportData);
+    }
+
+    public function recentOrders(): AnonymousResourceCollection
+    {
+        $displayableOrderStatuses = [
+            OrderStatus::PAID->value,
+            OrderStatus::PROCESSING->value,
+            OrderStatus::SHIPPED->value,
+            OrderStatus::DELIVERED->value,
+        ];
+
+        $orders = Order::with([
+            'user:id,name',
+            'payment:order_id,status',
+            'shipment:order_id,status'
+        ])
+            ->whereIn('status', $displayableOrderStatuses)
+            ->latest() // orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
 
-        $data = $orders->map(function ($order) {
-            return [
-                'id' => $order->id,
-                'order_number' => $order->order_number,
-                'customer' => $order->user ? $order->user->name : 'N/A',
-                'total' => $order->total_amount,
-                'status' => $order->status,
-                'date' => $order->created_at->format('Y-m-d'),
-            ];
+        return OrderResource::collection($orders);
+    }
+
+    protected function padChartData($queryResult, Carbon $startDate, Carbon $endDate, string $valueKey, bool $toFloat = false): array
+    {
+        $resultGrouped = $queryResult->keyBy(function ($item) {
+            return sprintf('%d-%02d', $item->year, $item->month);
         });
 
-        return response()->json($data, 200);
+        $paddedData = [];
+        $currentMonth = $startDate->copy()->startOfMonth();
+
+        while ($currentMonth <= $endDate) {
+            $key = $currentMonth->format('Y-m');
+            $monthName = $currentMonth->translatedFormat('M Y');
+
+            $value = $resultGrouped->has($key)
+                ? ($toFloat ? (float)$resultGrouped[$key]->$valueKey : (int)$resultGrouped[$key]->$valueKey)
+                : 0;
+
+            $paddedData[] = [
+                'name' => $monthName,
+                $valueKey => $value,
+            ];
+
+            $currentMonth->addMonthNoOverflow();
+        }
+
+        return $paddedData;
     }
 }

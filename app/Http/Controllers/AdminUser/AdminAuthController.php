@@ -20,22 +20,22 @@ class AdminAuthController extends Controller
     public function login(AdminLoginRequest $request): JsonResponse
     {
         $credentials = $request->validated();
-        $guard = Auth::guard('admin_users');
 
-        if (!$guard->attempt($credentials)) {
-             return response()->json([
+        $user = AdminUser::where('email', $credentials['email'])->first();
+
+        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+            return response()->json([
                 'message' => 'Email atau password salah.',
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-        $user = $guard->user();
         $token = $user->createToken('admin-auth-token-' . $user->id)->plainTextToken;
 
         return response()->json([
             'message' => 'Login berhasil.',
             'user'    => new AdminUserResource($user),
             'token'   => $token,
-        ], Response::HTTP_OK);
+        ], Response::HTTP_OK); // 200 OK
     }
 
     public function logout(Request $request): JsonResponse

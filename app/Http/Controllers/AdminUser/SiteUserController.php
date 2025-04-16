@@ -3,57 +3,42 @@
 namespace App\Http\Controllers\AdminUser;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateSiteUserStatusRequest;
+use App\Http\Resources\SiteUserResource;
 use App\Models\SiteUser;
-use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Symfony\Component\HttpFoundation\Response;
 
 class SiteUserController extends Controller
 {
-    public function index()
+    public function index(): AnonymousResourceCollection
     {
-        $admins = SiteUser::orderBy('created_at', 'desc')->get();
-        return response()->json($admins, 200);
+        $users = SiteUser::orderBy('name', 'asc')->get();
+        return SiteUserResource::collection($users);
     }
 
-    public function show($id)
+    public function show(SiteUser $siteUser): SiteUserResource
+{
+    // Muat relasi yang dibutuhkan, termasuk payment dan shipment pada order
+    $siteUser->load(['addresses', 'orders' => function ($query) {
+        $query->with(['payment', 'shipment']) // Eager load payment & shipment untuk setiap order
+              ->orderBy('created_at', 'desc'); // Urutkan order terbaru di atas
+    }]);
+    // Kita tidak perlu load orderItems di sini jika tidak ditampilkan di tabel ringkasan order
+
+    return new SiteUserResource($siteUser);
+}
+
+    public function updateStatus(UpdateSiteUserStatusRequest $request, SiteUser $siteUser): JsonResponse
     {
-        $user = SiteUser::with([
-            'addresses',
-            'orders.orderItems'
-        ])->find($id);
+        $validatedData = $request->validated();
 
-        if (!$user) {
-            return response()->json([
-                'message' => 'Pengguna tidak ditemukan.'
-            ], 404);
-        }
-
-        return response()->json($user, 200);
-    }
-
-    public function updateStatus(Request $request, $id)
-    {
-        $user = SiteUser::find($id);
-
-        if (!$user) {
-            return response()->json([
-                'message' => 'Pengguna tidak ditemukan.'
-            ], 404);
-        }
-
-        // Validasi input status
-        $data = $request->validate([
-            'is_active' => 'required|boolean'
-        ], [
-            'is_active.required' => 'Status akun wajib diisi.',
-            'is_active.boolean'  => 'Status akun harus bernilai true atau false.',
-        ]);
-
-        // Perbarui status akun
-        $user->update($data);
+        $siteUser->update($validatedData);
 
         return response()->json([
             'message' => 'Status akun pengguna berhasil diperbarui.',
-            'user'    => $user
-        ], 200);
+            'user'    => new SiteUserResource($siteUser)
+        ], Response::HTTP_OK);
     }
 }

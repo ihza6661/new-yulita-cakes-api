@@ -48,9 +48,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     // SiteUserDetailController
-    Route::put('/admin/site_user', [SiteUserController::class, 'index']);
-    Route::get('/admin/site_user/{id}', [SiteUserController::class, 'show']);
-    Route::put('/admin/update_siteuser_status/{id}', [SiteUserController::class, 'updateStatus']);
+    Route::get('/admin/site_user', [SiteUserController::class, 'index']);
+    Route::get('/admin/site_user/{siteUser}', [SiteUserController::class, 'show']);
+    Route::put('/admin/update_siteuser_status/{siteUser}', [SiteUserController::class, 'updateStatus']);
 
     // Dashboard
     Route::get('/admin/dashboard/summary', [DashboardController::class, 'summary']);

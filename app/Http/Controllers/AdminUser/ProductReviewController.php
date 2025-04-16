@@ -3,33 +3,28 @@
 namespace App\Http\Controllers\AdminUser;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ProductReviewResource;
 use App\Models\ProductReview;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ProductReviewController extends Controller
 {
-    public function index()
+    public function index(): AnonymousResourceCollection
     {
-        $reviews = ProductReview::with('user', 'product')
+        $reviews = ProductReview::with([
+            'user:id,name',
+            'product:id,product_name'
+        ])
             ->latest()
             ->get();
 
-        return response()->json([
-            'reviews' => $reviews,
-        ], 200);
+        return ProductReviewResource::collection($reviews);
     }
 
-    public function show($id)
+    public function show(ProductReview $productReview): ProductReviewResource
     {
-        $review = ProductReview::with('user', 'product')->find($id);
+        $productReview->load(['user:id,name,email', 'product:id,product_name']);
 
-        if (!$review) {
-            return response()->json([
-                'message' => 'Ulasan tidak ditemukan.'
-            ], 404);
-        }
-
-        return response()->json([
-            'review' => $review,
-        ], 200);
+        return new ProductReviewResource($productReview);
     }
 }

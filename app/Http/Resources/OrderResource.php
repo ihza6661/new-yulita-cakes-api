@@ -16,20 +16,16 @@ class OrderResource extends JsonResource
             'order_number' => $this->order_number,
             'total_amount' => (float) $this->total_amount,
             'shipping_cost' => (float) $this->shipping_cost,
-            'status' => $this->status->value, // Status Order utama (Enum value)
-            'status_label' => $this->status->name, // Status Order utama (Enum name/label)
-            'order_date' => $this->created_at, // Atau field tanggal order spesifik jika ada
+            'status' => $this->status->value,
+            'status_label' => $this->status->name,
+            'order_date' => $this->created_at,
 
-            // Tambahkan Status Pembayaran (ambil dari relasi payment)
-            'payment_status' => optional($this->payment)->status?->value ?? 'N/A', // Menggunakan optional helper & nullsafe operator
+            'payment_status' => optional($this->payment)->status?->value ?? 'N/A',
             'payment_status_label' => optional($this->payment)->status?->name ?? 'N/A',
 
-            // Tambahkan Status Pengiriman (ambil dari relasi shipment)
-            'shipment_status' => optional($this->shipment)->status?->value ?? 'N/A', // Menggunakan optional helper & nullsafe operator
+            'shipment_status' => optional($this->shipment)->status?->value ?? 'N/A',
             'shipment_status_label' => optional($this->shipment)->status?->name ?? 'N/A',
 
-            // Relasi lain jika perlu (sudah ada sebelumnya)
-            // 'address' => new AddressResource($this->whenLoaded('address')),
             'order_items' => OrderItemResource::collection($this->whenLoaded('orderItems')),
         ];
     }

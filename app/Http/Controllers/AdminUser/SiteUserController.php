@@ -19,16 +19,14 @@ class SiteUserController extends Controller
     }
 
     public function show(SiteUser $siteUser): SiteUserResource
-{
-    // Muat relasi yang dibutuhkan, termasuk payment dan shipment pada order
-    $siteUser->load(['addresses', 'orders' => function ($query) {
-        $query->with(['payment', 'shipment']) // Eager load payment & shipment untuk setiap order
-              ->orderBy('created_at', 'desc'); // Urutkan order terbaru di atas
-    }]);
-    // Kita tidak perlu load orderItems di sini jika tidak ditampilkan di tabel ringkasan order
+    {
+        $siteUser->load(['addresses', 'orders' => function ($query) {
+            $query->with(['payment', 'shipment'])
+                ->orderBy('created_at', 'desc');
+        }]);
 
-    return new SiteUserResource($siteUser);
-}
+        return new SiteUserResource($siteUser);
+    }
 
     public function updateStatus(UpdateSiteUserStatusRequest $request, SiteUser $siteUser): JsonResponse
     {

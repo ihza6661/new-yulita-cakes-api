@@ -3,57 +3,28 @@
 namespace App\Http\Controllers\AdminUser;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\PaymentResource;
 use App\Models\Payment;
-use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class PaymentController extends Controller
 {
-    public function index()
+    public function index(): AnonymousResourceCollection
     {
-        $payments = Payment::with('order.user')->orderBy('created_at', 'desc')->get();
-        return response()->json([
-            'payments' => $payments,
-        ], 200);
+        $payments = Payment::with([
+            'order:id,order_number,site_user_id,status,created_at',
+            'order.user:id,name,email'
+        ])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return PaymentResource::collection($payments);
     }
 
-    public function show($id)
+    public function show(Payment $payment): PaymentResource
     {
-        $payment = Payment::with('order')->find($id);
-        if (!$payment) {
-            return response()->json([
-                'message' => 'Pembayaran tidak ditemukan.'
-            ], 404);
-        }
+        $payment->load(['order.user:id,name,email']);
 
-        return response()->json([
-            'payment' => $payment,
-        ], 200);
-    }
-
-    public function updateStatus(Request $request, $id)
-    {
-        $data = $request->validate([
-            'status' => 'required|string|in:settlement,pending,cancel,expired,deny',
-        ], [
-            'status.required' => 'Status pembayaran harus diisi.',
-            'status.in'       => 'Status pembayaran tidak valid.',
-        ]);
-
-        $payment = Payment::find($id);
-        if (!$payment) {
-            return response()->json([
-                'message' => 'Pembayaran tidak ditemukan.'
-            ], 404);
-        }
-
-        // Update status pembayaran
-        $payment->update([
-            'status' => $data['status']
-        ]);
-
-        return response()->json([
-            'message' => 'Status pembayaran berhasil diperbarui.',
-            'payment' => $payment,
-        ], 200);
+        return new PaymentResource($payment);
     }
 }

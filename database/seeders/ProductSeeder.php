@@ -18,250 +18,93 @@ class ProductSeeder extends Seeder
     {
         $products = [
             [
-                'product_name'   => 'WINGMAN INDIGO SLUB WORK SHIRT L/S',
-                'category_id'    => 2,
+                'product_name'   => 'Nastar',
+                'category_id'    => 1,
                 'original_price' => 200000,
                 'sale_price'     => 150000,
                 'stock'          => 1,
-                'weight'         => 500,
-                'description'    => 'Kemeja pria model slim fit.',
+                'weight'         => 50,
+                'description'    => 'Kue kering',
                 'images'         => [
                     [
-                        'image'       => public_path('product-as-denim/Indigo-slub-workshirt-LS-1.jpg'),
+                        'image'       => public_path('yulita-cakes/nastar-1.jpg'),
                         'is_primary' => true,
                     ],
                     [
-                        'image'       => public_path('product-as-denim/Indigo-slub-workshirt-LS-2.jpg'),
+                        'image'       => public_path('yulita-cakes/nastar-2.jpg'),
                         'is_primary' => false,
                     ],
                     [
-                        'image'       => public_path('product-as-denim/Indigo-slub-workshirt-LS-3.jpg'),
-                        'is_primary' => false,
-                    ],
-                    [
-                        'image'       => public_path('product-as-denim/Indigo-slub-workshirt-LS-8.jpg'),
+                        'image'       => public_path('yulita-cakes/nastar-3.png'),
                         'is_primary' => false,
                     ],
                 ],
             ],
             [
-                'product_name'   => 'WINGMAN HERRINGBONE BLACK WESTERN SHIRT L/S',
+                'product_name'   => 'Putri Salju',
+                'category_id'    => 1,
+                'original_price' => 100000,
+                'sale_price'     => null,
+                'stock'          => 1,
+                'weight'         => 50,
+                'description'    => 'Kue kering',
+                'images'         => [
+                    [
+                        'image'       => public_path('yulita-cakes/putri-salju-1.jpg'),
+                        'is_primary' => true,
+                    ],
+                    [
+                        'image'       => public_path('yulita-cakes/putri-salju-2.jpeg'),
+                        'is_primary' => false,
+                    ],
+                    [
+                        'image'       => public_path('yulita-cakes/putri-salju-3.jpg'),
+                        'is_primary' => false,
+                    ],
+                ],
+            ],
+            [
+                'product_name'   => 'Kue Lapis Legit',
                 'category_id'    => 2,
-                'original_price' => 385000,
+                'original_price' => 150000,
+                'sale_price'     => 140000,
                 'stock'          => 1,
-                'weight'         => 500,
-                'description'    => 'Kemeja pria model slim fit.',
+                'weight'         => 150,
+                'description'    => 'Kue Basah',
                 'images'         => [
                     [
-                        'image'       => public_path('product-as-denim/Herringbone-Western-Shirt-1.jpg'),
+                        'image'       => public_path('yulita-cakes/lapis-legit-1.webp'),
                         'is_primary' => true,
                     ],
                     [
-                        'image'       => public_path('product-as-denim/Herringbone-Western-Shirt-1.jpg'),
+                        'image'       => public_path('yulita-cakes/lapis-legit-2.webp'),
                         'is_primary' => false,
                     ],
                     [
-                        'image'       => public_path('product-as-denim/Herringbone-Herringbone-Western-Shirt-3-510x638.jpg'),
+                        'image'       => public_path('yulita-cakes/lapis-legit-3.jpg'),
                         'is_primary' => false,
                     ],
                 ],
             ],
             [
-                'product_name'   => 'WINGMAN GAMA 14.5oz',
-                'category_id'    => 1,
-                'original_price' => 785000,
-                'sale_price'     => 685000,
-                'stock'          => 1,
-                'weight'         => 500,
-                'description'    => 'Celana.',
-                'images'         => [
-                    [
-                        'image'       => public_path('product-as-denim/Katalog-GAMA-1-2000x2500.jpg'),
-                        'is_primary' => true,
-                    ],
-                    [
-                        'image'       => public_path('product-as-denim/Katalog-GAMA-3-2000x2500.jpg'),
-                        'is_primary' => false,
-                    ],
-                    [
-                        'image'       => public_path('product-as-denim/Katalog-Katalog-GAMA-4-1229x1536.jpg'),
-                        'is_primary' => false,
-                    ],
-                ],
-            ],
-            [
-                'product_name'   => 'WINGMAN YASUKE | NH-207',
-                'category_id'    => 1,
-                'original_price' => 900000,
-                'stock'          => 1,
-                'weight'         => 500,
-                'description'    => 'Celana',
-                'images'         => [
-                    [
-                        'image'       => public_path('product-as-denim/Yasuke-COVER-1-1.jpg'),
-                        'is_primary' => true,
-                    ],
-                    [
-                        'image'       => public_path('product-as-denim/Yasuke-7.jpg'),
-                        'is_primary' => false,
-                    ],
-                    [
-                        'image'       => public_path('product-as-denim/Yasuke-10.jpg'),
-                        'is_primary' => false,
-                    ],
-                ],
-            ],
-            [
-                'product_name'   => 'WINGMAN DUCK WHITE',
-                'category_id'    => 3,
-                'original_price' => 350000,
-                'stock'          => 1,
-                'weight'         => 200,
-                'description'    => 'Kaos',
-                'images'         => [
-                    [
-                        'image'       => public_path('product-as-denim/Tshirt-Duck-white-1.jpg'),
-                        'is_primary' => true,
-                    ],
-                    [
-                        'image'       => public_path('product-as-denim/Tshirt-Duck-white-2.jpg'),
-                        'is_primary' => false,
-                    ],
-                    [
-                        'image'       => public_path('product-as-denim/Tshirt-Duck-white-4.jpg'),
-                        'is_primary' => false,
-                    ],
-                ],
-            ],
-            [
-                'product_name'   => 'Green Day Shirt',
-                'category_id'    => 3,
-                'original_price' => 145000,
-                'stock'          => 1,
-                'weight'         => 200,
-                'description'    => 'Kaos',
-                'images'         => [
-                    [
-                        'image'       => public_path('product-as-denim/greenday.jpeg'),
-                        'is_primary' => true,
-                    ],
-                    [
-                        'image'       => public_path('product-as-denim/green-day-shirts.png'),
-                        'is_primary' => false,
-                    ],
-                ],
-            ],
-            [
-                'product_name'   => 'VANS AUTENTHIC',
-                'category_id'    => 4,
-                'original_price' => 650000,
-                'stock'          => 1,
-                'weight'         => 100,
-                'description'    => 'Sepatu',
-                'images'         => [
-                    [
-                        'image'       => public_path('product-as-denim/sepatu.jpeg'),
-                        'is_primary' => true,
-                    ]
-                ],
-            ],
-            [
-                'product_name'   => 'LUXE PURPLE 17oz',
-                'category_id'    => 1,
-                'original_price' => 1150000,
-                'stock'          => 1,
-                'weight'         => 100,
-                'description'    => 'Pada umumnya denim menggunakan benang kapas berwarna putih/natural yang di warnai ke dalam pewarna indigo. Seiring pemakaian, denim akan luntur dan permukaan luar denim akan kembali berwarna putih. Kami menambah 1 PROSES PEWARNAAN, sebelum diwarnai indigo, benang kapas terlebih dahulu diwarnai UNGU, sehingga ketika denim digunakan fading permukaan luar akan menjadi warna UNGU.',
-                'images'         => [
-                    [
-                        'image'       => public_path('product-as-denim/Katalog-Luxe-Purple-Core-1-1.jpg'),
-                        'is_primary' => true,
-                    ],
-                    [
-                        'image'       => public_path('product-as-denim/Katalog-Luxe-Purple-Core-3.jpg'),
-                        'is_primary' => false,
-                    ],
-                    [
-                        'image'       => public_path('product-as-denim/Katalog-Luxe-Purple-Core-7.jpg'),
-                        'is_primary' => false,
-                    ],
-                    [
-                        'image'       => public_path('product-as-denim/Katalog-Luxe-Purple-Core-9.jpg'),
-                        'is_primary' => false,
-                    ],
-                ],
-            ],
-            [
-                'product_name'   => 'LUXE RED 17oz',
-                'category_id'    => 1,
-                'original_price' => 1150000,
-                'stock'          => 1,
-                'weight'         => 100,
-                'description'    => 'Pada umumnya denim menggunakan benang kapas berwarna putih/natural yang di warnai ke dalam pewarna indigo. Seiring pemakaian, denim akan luntur dan permukaan luar denim akan kembali berwarna putih. Kami menambah 1 PROSES PEWARNAAN, sebelum diwarnai indigo, benang kapas terlebih dahulu diwarnai UNGU, sehingga ketika denim digunakan fading permukaan luar akan menjadi warna UNGU.',
-                'images'         => [
-                    [
-                        'image'       => public_path('product-as-denim/Katalog-Luxe-Red-Core-1-1.jpg'),
-                        'is_primary' => true,
-                    ],
-                    [
-                        'image'       => public_path('product-as-denim/Katalog-Luxe-Red-Core-3.jpg'),
-                        'is_primary' => false,
-                    ],
-                    [
-                        'image'       => public_path('product-as-denim/Katalog-Luxe-Red-Core-7.jpg'),
-                        'is_primary' => false,
-                    ],
-                    [
-                        'image'       => public_path('product-as-denim/Katalog-Luxe-Red-Core-9.jpg'),
-                        'is_primary' => false,
-                    ],
-                ],
-            ],
-            [
-                'product_name'   => 'CORDUROY WHITE | TYPE III JACKET',
+                'product_name'   => 'Kue Lapis Surabaya',
                 'category_id'    => 2,
-                'original_price' => 500000,
-                'stock'          => 1,
-                'weight'         => 100,
-                'description'    => 'Pada umumnya denim menggunakan benang kapas berwarna putih/natural yang di warnai ke dalam pewarna indigo. Seiring pemakaian, denim akan luntur dan permukaan luar denim akan kembali berwarna putih. Kami menambah 1 PROSES PEWARNAAN, sebelum diwarnai indigo, benang kapas terlebih dahulu diwarnai UNGU, sehingga ketika denim digunakan fading permukaan luar akan menjadi warna UNGU.',
+                'original_price' => 200000,
+                'sale_price'     => 150000,
+                'stock'          => 2,
+                'weight'         => 2000,
+                'description'    => 'Kue Basah',
                 'images'         => [
                     [
-                        'image'       => public_path('product-as-denim/Corduroy-Type-III-Jacket-White-1-Cover.jpg'),
+                        'image'       => public_path('yulita-cakes/lapis-surabaya-1.jpg'),
                         'is_primary' => true,
                     ],
                     [
-                        'image'       => public_path('product-as-denim/Corduroy-Type-III-Jacket-White-2-510x638.jpg'),
+                        'image'       => public_path('yulita-cakes/lapis-surabaya-2.jpg'),
                         'is_primary' => false,
                     ],
                     [
-                        'image'       => public_path('product-as-denim/Corduroy-Type-III-Jacket-White-3-510x638.jpg'),
-                        'is_primary' => false,
-                    ],
-                    [
-                        'image'       => public_path('product-as-denim/Corduroy-Type-III-Jacket-White-6-100x100.jpg'),
-                        'is_primary' => false,
-                    ],
-                ],
-            ],
-            [
-                'product_name'   => "CTAS Classic Wedge Leather",
-                'category_id'    => 4,
-                'original_price' => 1899000,
-                'sale_price' => 1329300,
-                'stock'          => 1,
-                'weight'         => 100,
-                'description'    => 'Pada umumnya denim menggunakan benang kapas berwarna putih/natural yang di warnai ke dalam pewarna indigo. Seiring pemakaian, denim akan luntur dan permukaan luar denim akan kembali berwarna putih. Kami menambah 1 PROSES PEWARNAAN, sebelum diwarnai indigo, benang kapas terlebih dahulu diwarnai UNGU, sehingga ketika denim digunakan fading permukaan luar akan menjadi warna UNGU.',
-                'images'         => [
-                    [
-                        'image'       => public_path('product-as-denim/converse-1.webp'),
-                        'is_primary' => true,
-                    ],
-                    [
-                        'image'       => public_path('product-as-denim/converse-1.webp'),
-                        'is_primary' => false,
-                    ],
-                    [
-                        'image'       => public_path('product-as-denim/converse-1.webp'),
+                        'image'       => public_path('yulita-cakes/lapis-surabaya-3.jpg'),
                         'is_primary' => false,
                     ],
                 ],

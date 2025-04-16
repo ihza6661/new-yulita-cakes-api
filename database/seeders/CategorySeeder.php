@@ -17,20 +17,12 @@ class CategorySeeder extends Seeder
     {
         $categories = [
             [
-                'category_name' => 'Celana',
-                'image'         => public_path('product-as-denim/Indigo-slub-workshirt-LS-1.jpg'),
+                'category_name' => 'Kue Kering',
+                'image'         => public_path('yulita-cakes/kue-kering.jpg'),
             ],
             [
-                'category_name' => 'Kemeja',
-                'image'       => public_path('product-as-denim/Katalog-GAMA-1-2000x2500.jpg'),
-            ],
-            [
-                'category_name' => 'Kaos',
-                'image'       => public_path('product-as-denim/Yasuke-COVER-1-1.jpg'),
-            ],
-            [
-                'category_name' => 'Sepatu',
-                'image'       => public_path('product-as-denim/Tshirt-Duck-white-1.jpg'),
+                'category_name' => 'Kue Basah',
+                'image'       => public_path('yulita-cakes/kue-basah.jpg'),
             ],
         ];
 

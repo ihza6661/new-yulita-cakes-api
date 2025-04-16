@@ -155,7 +155,7 @@ class ProductReviewController extends Controller
         $limit = $request->input('limit', 3);
 
         $featuredReviews = ProductReview::with('user')
-            ->where('rating', '>=', 4)
+            ->where('rating', '>=', 3)
             ->whereNotNull('review')
             ->where('review', '!=', '')
             ->latest()

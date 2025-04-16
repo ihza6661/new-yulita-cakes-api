@@ -26,7 +26,10 @@ class OrderResource extends JsonResource
             'shipment_status' => optional($this->shipment)->status?->value ?? 'N/A',
             'shipment_status_label' => optional($this->shipment)->status?->name ?? 'N/A',
 
+            'user' => new SiteUserResource($this->whenLoaded('user')),
+            'address' => new AddressResource($this->whenLoaded('address')),
             'order_items' => OrderItemResource::collection($this->whenLoaded('orderItems')),
+
         ];
     }
 }

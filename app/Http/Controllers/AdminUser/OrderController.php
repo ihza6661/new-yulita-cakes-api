@@ -3,55 +3,48 @@
 namespace App\Http\Controllers\AdminUser;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateOrderStatusRequest;
+use App\Http\Resources\OrderResource;
 use App\Models\Order;
-use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Symfony\Component\HttpFoundation\Response;
 
 class OrderController extends Controller
 {
-    public function index()
+    public function index(): AnonymousResourceCollection
     {
-        $orders = Order::with(relations: ['orderItems.product', 'address', 'user'])
+        $orders = Order::with(['user:id,name', 'payment', 'shipment'])
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return response()->json($orders, 200);
+        return OrderResource::collection($orders);
     }
 
-    public function show($id)
+    public function show(Order $order): OrderResource
     {
-        $order = Order::with(['orderItems.product', 'address', 'user'])
-            ->find($id);
+        $order->load([
+            'user:id,name,email',
+            'address',
+            'payment',
+            'shipment',
+            'orderItems.product:id,product_name'
+        ]);
 
-        if (!$order) {
-            return response()->json(['message' => 'Pesanan tidak ditemukan.'], 404);
-        }
-
-        return response()->json($order, 200);
+        return new OrderResource($order);
     }
 
-    public function updateStatus(Request $request, $id)
+    public function updateStatus(UpdateOrderStatusRequest $request, Order $order): JsonResponse
     {
-        $data = $request->validate([
-            'status' => 'required|in:pending,paid,processing,shipped,delivered,cancelled',
-        ], [
-            'status.required' => 'Status harus diisi.',
-            'status.in'       => 'Status tidak valid.',
-        ]);
+        $validatedData = $request->validated();
 
-        $order = Order::find($id);
-        if (!$order) {
-            return response()->json([
-                'message' => 'Pesanan tidak ditemukan.'
-            ], 404);
-        }
+        $order->update($validatedData);
 
-        $order->update([
-            'status' => $data['status']
-        ]);
+        $order->load(['user:id,name', 'payment', 'shipment']);
 
         return response()->json([
             'message' => 'Status pesanan berhasil diperbarui.',
-            'order'   => $order,
-        ], 200);
+            'order'   => new OrderResource($order)
+        ], Response::HTTP_OK);
     }
 }
